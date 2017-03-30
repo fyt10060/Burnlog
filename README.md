@@ -1,11 +1,11 @@
-### Burnlog
+# Burnlog
 ## Introduction
 A beginner's blog server trial by golang and docker.
 Learn server programming from zero
 
 ## Update History
 
-# 0.0.1
+### 0.0.1
 
 完成了CI的工作，CI为Continuous Integration即持续集成，很多初学者会选择在本地测试自己的代码，但是如果仅仅需要一个git push就可以部署到自己的服务器上，然后开始使用那不也可以直接在服务器上测试么？当然，要说速度还是代码运行完直接监听localhost的一个端口测试来得快些。但是这个步骤等到日后有了上线版本之后就变得很有必要了，难道每次更新都还要把代码或者文件夹粘贴到服务器上么？
 
