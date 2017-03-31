@@ -15,8 +15,10 @@ const (
 
 func main() {
 	routeRule := fmt.Sprintf("/%s/%s", serviceLabel, addonLabel)
+	routeRule2 := fmt.Sprintf("/%s", serviceLabel)
 	fmt.Println(routeRule)
 	beego.Router(routeRule, &mainController{})
+	beego.Router(routeRule2, &mainController{})
 	beego.Run()
 }
 
