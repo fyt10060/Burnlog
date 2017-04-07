@@ -47,7 +47,7 @@ func (c *mainController) Get() {
 }
 
 func showTempletResponse(w http.ResponseWriter, templete string) {
-	text := fmt.Sprintf("The API is :%s", templete)
+	text := fmt.Sprintf("The API is :	%s", templete)
 	fmt.Fprintln(w, text)
 }
 
