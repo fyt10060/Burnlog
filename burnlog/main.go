@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"Burnlog/burnlog/controllers"
+
 	"github.com/astaxie/beego"
 )
 
@@ -14,11 +16,14 @@ const (
 )
 
 func main() {
-	routeRule := fmt.Sprintf("/%s/%s", serviceLabel, addonLabel)
-	routeRule2 := fmt.Sprintf("/%s", serviceLabel)
-	fmt.Println(routeRule)
-	beego.Router(routeRule, &mainController{})
-	beego.Router(routeRule2, &mainController{})
+	//	routeRule := fmt.Sprintf("/%s/%s", serviceLabel, addonLabel)
+	//	routeRule2 := fmt.Sprintf("/%s", serviceLabel)
+	routeUser := fmt.Sprintf("/user/%s", controllers.UserParam)
+	routeArticle := fmt.Sprintf("/article/%s", controllers.ArticleParam)
+	//	beego.Router(routeRule, &mainController{})
+	//	beego.Router(routeRule2, &mainController{})
+	beego.Router(routeUser, &controllers.UserController{})
+	beego.Router(routeArticle, &controllers.ArticleController{})
 	beego.Run()
 }
 
@@ -47,7 +52,7 @@ func (c *mainController) Get() {
 }
 
 func showTempletResponse(w http.ResponseWriter, templete string) {
-	text := fmt.Sprintf("The API is :	%s", templete)
+	text := fmt.Sprintf("The API is:  %s", templete)
 	fmt.Fprintln(w, text)
 }
 
