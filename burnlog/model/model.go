@@ -32,18 +32,40 @@ const (
 
 type User struct {
 	Name           string        `json:"name" redis:"name"`
-	Authority      UserAuthority `json:"authority redis:"authority"`
-	Uid            string        `json:"-" orm:"PK"`
-	SignUpTime     int64         `json:"signup_time" redis:"signup_time"`
-	LastSignInTime int64         `json:"last_signin_time" redis:"last_signin_time"`
-	CommentList    string        `json:"comment_list" redis:"comment_list"`
-	ArticleList    string        `json:"article_list" redis:"article_list"`
-	Email          string        `json:"email redis:"email"`
+	Authority      UserAuthority `json:"authority" redis:"authority"`
+	UId            string        `json:"-" orm:"PK"` // json:"-" is meant to ignore this field when encoding into json string
+	SignUpTime     time.Time     `json:"signup_time" redis:"signup_time"`
+	LastSignInTime time.Time     `json:"last_signin_time" redis:"last_signin_time" orm:"null"`
+	Email          string        `json:"email" redis:"email"`
 }
 
 type UserInfo struct {
 	User
-	Token string `json:"token" redis:"token"`
+	Token       string `json:"token" redis:"token"`
+	CommentList string `json:"comment_list" redis:"comment_list"`
+	ArticleList string `json:"article_list" redis:"article_list"`
+}
+
+type AccountList struct {
+	Email    string `orm:"PK"`
+	Password string
+	UId      string
+}
+
+type TokenList struct {
+	Token      string `orm:"PK"`
+	CreateTime time.Time
+	UId        string
+}
+
+func CreateNewToken(accountName, uId string) *TokenList {
+	var newValue TokenList
+	newValue = TokenList{
+		Token:      GetUserToken(accountName),
+		CreateTime: GetNowTime(),
+		UId:        uId,
+	}
+	return &newValue
 }
 
 func CreateNewUser(name, email string) *User {
@@ -52,20 +74,20 @@ func CreateNewUser(name, email string) *User {
 		Name:       name,
 		Email:      email,
 		SignUpTime: now,
-		Uid:        getFormatId(email, now),
+		UId:        getFormatId(email, serUser, now),
 		Authority:  AuNormal,
 	}
 }
 
 type Article struct {
-	Title        string `json:"title"`
-	Detail       string `json:"detail"`
-	CreateTime   int64  `json:"create_time"`
-	UpdateTime   int64  `json:"update_time"`
-	Author       string `json:"author"`
-	CommentList  string `json:"comment_list"`
-	MaterialList string `json:"material_list"`
-	ArticleID    string `json:"article_id"`
+	Title        string    `json:"title"`
+	Detail       string    `json:"detail"`
+	CreateTime   time.Time `json:"create_time"`
+	UpdateTime   time.Time `json:"update_time"`
+	Author       string    `json:"author"`
+	CommentList  string    `json:"comment_list"`
+	MaterialList string    `json:"material_list"`
+	ArticleID    string    `json:"article_id"`
 }
 
 type ArticleList struct {
@@ -86,8 +108,9 @@ type Comment struct {
 	Author         string
 	CreatTime      int64
 	UpdateTime     int64
-	CommentID      string
-	SuperCommentID string
+	ArticleId      string
+	CommentId      string
+	SuperCommentId string
 }
 
 type CommentList struct {
@@ -100,20 +123,20 @@ func GetNewArticle(title, detail, author string, materialList string) *Article {
 		Title:        title,
 		Detail:       detail,
 		Author:       author,
-		ArticleID:    getFormatId("article", now),
+		ArticleID:    getFormatId("article", serArticle, now),
 		CreateTime:   now,
 		UpdateTime:   now,
 		MaterialList: materialList,
 	}
 }
 
-func GetNowTime() int64 {
-	return time.Now().Unix()
+func GetNowTime() time.Time {
+	return time.Now()
 }
 
-func getFormatId(value string, time int64) string {
-	theTime := fmt.Sprintf("%d", time)
-	array := []string{value, theTime}
+func getFormatId(value, serect string, time time.Time) string {
+	theTime := fmt.Sprintf("%d", time.Unix())
+	array := []string{value, theTime, serect}
 	sort.Strings(array)
 
 	idString := strings.Join(array, "")
@@ -128,7 +151,7 @@ func getFormatId(value string, time int64) string {
 }
 
 func GetUserToken(account string) string {
-	return getFormatId(account, GetNowTime())
+	return getFormatId(account, serToken, GetNowTime())
 }
 
 func CheckEmailFormat(email string) bool {

@@ -45,7 +45,7 @@ func init() {
 		panic(err)
 	}
 
-	orm.RegisterModel(new(model.User))
+	orm.RegisterModel(new(model.User), new(model.TokenList), new(model.AccountList))
 	orm.RunSyncdb("default", false, true)
 }
 
@@ -84,62 +84,125 @@ func getRedisConn() redis.Conn {
 
 // User related
 func AddNewUser(user *model.User, password string) (errMsg model.ErrorType) {
-	conn := getRedisConn()
-	defer putRedis(conn)
-	v, err := redis.Int(conn.Do("sadd", keyUserEmail, user.Email))
-	if err != nil {
-		return model.ErrSysDb
+	o := orm.NewOrm()
+	account := model.AccountList{
+		Email:    user.Email,
+		Password: password,
+		UId:      user.UId,
 	}
-	if v == 0 {
+
+	if o.Read(&account) == nil { // err = nil means that email exist already
 		return model.ErrEmailExist
+	} else {
+		o.Insert(&account) // insert into account list
 	}
-	_, err = conn.Do("set", user.Email, user.UserID)
-
-	_, err = conn.Do("hmset", redis.Args{user.UserID}.AddFlat(user)...)
-	_, err = conn.Do("hset", user.UserID, keyPassword, password)
-
+	_, err := o.Insert(user) // insert into userinfo list
 	if err != nil {
 		fmt.Println(err)
+		o.Delete(&account)
+		return model.ErrSysDb
 	}
 	return model.ErrSuccess
 }
 
-func Login(account, password string) (errMsg model.ErrorType, user *model.User) {
-	conn := getRedisConn()
-	defer putRedis(conn)
-	v, err := redis.Int(conn.Do("sismember", keyUserEmail, account))
-	if err != nil {
-		return model.ErrSysDb, nil
-	}
-	if v == 0 {
+func AddNewToken(accountName, uId string) (token string) {
+	tokenList := model.CreateNewToken(accountName, uId)
+	o := orm.NewOrm()
+	o.Insert(tokenList)
+	return tokenList.Token
+}
+
+func Login(account, password string) (errMsg model.ErrorType, userInfo *model.UserInfo) {
+
+	o := orm.NewOrm()
+	accountCheck := model.AccountList{Email: account}
+	err := o.Read(&accountCheck)
+	if err == orm.ErrNoRows { // not find this account in db
 		return model.ErrEmailMiss, nil
 	}
-	userId, err := redis.String(conn.Do("get", account))
-	pasInDb, err := redis.String(conn.Do("hget", userId, keyPassword))
 
-	if err != nil {
-		return model.ErrSysDb, nil
-	}
-	if pasInDb != password {
+	if accountCheck.Password != password { // password not correct
 		return model.ErrSignInPass, nil
 	}
-	values, err := redis.Values(conn.Do("hgetall", userId))
-	if err != nil {
+
+	userId := accountCheck.UId
+
+	user := model.User{UId: userId}
+	err = o.Read(&user)
+	if err == orm.ErrNoRows { // no user info
 		return model.ErrSysDb, nil
 	}
-	var theUser model.User
+	defer cacheUser(&user)
 
-	if err := redis.ScanStruct(values, &theUser); err != nil {
-		return model.ErrSysDb, nil
-	}
-	token := model.GetUserToken(userId)
-	theUser.Token = token
+	token := AddNewToken(account, userId)
 
-	_, err = conn.Do("hmset", userId, "last_signin_time", model.GetNowTime(), "token", token)
-	if err != nil {
-		fmt.Println(err)
+	var userResult = model.UserInfo{
+		User:  user,
+		Token: token,
 	}
-	return model.ErrSuccess, &theUser
+
+	user.LastSignInTime = model.GetNowTime()
+	o.Update(&user, "LastSignInTime")
+
+	return model.ErrSuccess, &userResult
+}
+
+func cacheUser(user *model.User) {
+	conn := getRedisConn()
+	defer putRedis(conn)
+	//	_, err = conn.Do("hmset", user.UId, "last_signin_time", model.GetNowTime())
+	//	if err != nil {
+	//		fmt.Println(err)
+	//	}
+}
+
+func readCacheUser() {
+	//	v, err := redis.Int(conn.Do("sismember", keyUserEmail, account))
+	//	if err != nil {
+	//		return model.ErrSysDb, nil
+	//	}
+	//	if v == 0 {
+	//		return model.ErrEmailMiss, nil
+	//	}
+	//	userId, err := redis.String(conn.Do("get", account))
+	//	pasInDb, err := redis.String(conn.Do("hget", userId, keyPassword))
+
+	//	if err != nil {
+	//		return model.ErrSysDb, nil
+	//	}
+	//	if pasInDb != password {
+	//		return model.ErrSignInPass, nil
+	//	}
+	//	values, err := redis.Values(conn.Do("hgetall", userId))
+	//	if err != nil {
+	//		return model.ErrSysDb, nil
+	//	}
+	//	var theUser model.User
+
+	//	if err := redis.ScanStruct(values, &theUser); err != nil {
+	//		return model.ErrSysDb, nil
+	//	}
+}
+
+func cacheAccount(account *model.AccountList) {
+	//	conn := getRedisConn()
+	//	defer putRedis(conn)
+	//	v, err := redis.Int(conn.Do("sadd", keyUserEmail, user.Email))
+	//	if err != nil {
+	//		return model.ErrSysDb
+	//	}
+	//	if v == 0 {
+	//		return model.ErrEmailExist
+	//	}
+
+	//	_, err = conn.Do("set", user.Email, user.UId)
+
+	//	_, err = conn.Do("hmset", redis.Args{user.UId}.AddFlat(user)...)
+	//	_, err = conn.Do("hset", user.UId, keyPassword, password)
+
+	//	if err != nil {
+	//		fmt.Println(err)
+	//	}
 }
 
 // Aritcle related

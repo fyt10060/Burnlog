@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"Burnlog/burnlog/model"
+	//	"Burnlog/burnlog/model"
 	//	"Burnlog/burnlog/service"
 
 	"github.com/astaxie/beego"
@@ -56,19 +56,19 @@ func (this *ArticleController) Get() {
 
 // Get article list
 func List(r *http.Request, w http.ResponseWriter) {
-	var list model.ArticleList
-	list.List = append(list.List, model.Article{
-		Title:      "我们在大草原的湖边",
-		Detail:     "等候鸟飞回来",
-		CreateTime: 1491969188,
-		Author:     "flamel",
-	})
-	list.List = append(list.List, model.Article{
-		Title:      "等我们都长大了",
-		Detail:     "就生一个娃娃，他会自己长大远去，而我们也各自老去，我给你写信",
-		CreateTime: 1491969100,
-		Author:     "gogogo",
-	})
+	//	var list model.ArticleList
+	//	list.List = append(list.List, model.Article{
+	//		Title:      "我们在大草原的湖边",
+	//		Detail:     "等候鸟飞回来",
+	//		CreateTime: 1491969188,
+	//		Author:     "flamel",
+	//	})
+	//	list.List = append(list.List, model.Article{
+	//		Title:      "等我们都长大了",
+	//		Detail:     "就生一个娃娃，他会自己长大远去，而我们也各自老去，我给你写信",
+	//		CreateTime: 1491969100,
+	//		Author:     "gogogo",
+	//	})
 	//	result := model.ParseError(0, "success", list)
 	//	w.Write(result)
 }

@@ -3,11 +3,29 @@
 A beginner's blog server trial by golang and docker.
 Learn server programming from zero
 
-## 0.0.2
-### 架构方面
-使用了beego推荐的架构，即MVC，自然后台程序不会如前端程序那样可以明显的细分为清楚的model-view-controller,但model和controller是清晰的，毕竟有数据就得有model，有调度就得有controller，而我这里另一个封装的包，我选择了起名为service，即服务。在我认为的架构里面，model应该是最高位的，不论controller还是service都需要依赖model包，毕竟后端就是和网络和数据打交道，model不应该依赖其他的包，仅仅依赖基础包就应该可以完全工作才是对的，在model里我不仅仅只是声明了对象，更重要的是提供对象的变量相关方法，处理数据的生成和封装打包的问题。而service，其实在所做的事情的层面上比model还要更底层，service是去和数据库读写打交道的，而以后扩展到例如定时清理token值的任务等等，service基于model为controller提供服务，这是我的基本思想。
-### 数据库
-这个版本里面可以看到我刚刚开了MySQL的一个非常非常小的头，但其实仔细看看会发现我已经用redis写完了user相关的服务了。不错，原本我就是打算要用redis做持久化存储的，有人会说redis占用内存太大，不适合做持久化，但其实redis的开发者早就注意到了这个问题，在最近的版本中也是开发了自己的持久化方案，即冷热分离，当内存占用较高的时候，会将原本存在内存中的较旧的内容存储到硬盘中。
-但最后为什么还是选择了MySQL做持久化呢？其实最最原本我还是打算用MySQL的，redis是用来做缓存的，但无奈我本机之前装过MySQL环境，无论如何都卸载不干净，导致MySQL无法本地调试，所以才去寻找redis做持久化存储的可能性，当然最开始还是受了比较大的打击的，但后来还是找到了原来redis已经原生支持了冷热分离，可是想想这终归不是自己动手来做的事情，总是觉得不靠谱，最后还是花了点精力去解决了MySQL的问题，具体解决办法在这里[Mac如何完全卸载MySQL](http://blog.swiftflamel.com/2017/04/17/macos%E5%BD%BB%E5%BA%95%E5%8D%B8%E8%BD%BDmysql/)
-所以最终我们的后端数据架构就会变成了由redis做缓存，MySQL做持久化存储的结构，而数据读写的想法就是先读redis，redis中不存在的话，去读MySQL，读到的结果返回给controller处理的同时也会存到redis中，而在redis的数据库中则会加入计数器，一旦计数器超限在存入新数据的同时会删除旧的缓存。
-不同于MySQL，go语言的redis库并没有提供连接池，我在代码里也参考网上的代码简单修改实现了一个，确保初级性能需求的处理
+## 0.0.3
+
+### 版本更新
+
+通过beego orm 实现了MySQL的链接，将原本的读取和存储redis的登录和注册的API改为了MySQL的实现，还没有实现缓存
+
+### 关于token
+首先用于区分用户的肯定是UID，UID也同时是user表的主键，那么如果按照简单的方法，肯定是直接就用UID来区分用户，用UID来获取这个用户的info、article、comment、material等等，这个也会是比较快的，可是，真的应该这么做么？如果我们返回给前端UID，那就相当于把整个用户最关键的key交了出去，所以这里我打算把用户数据的架构改成这样
+
+* user
+	* UID 'pk'
+	* other info
+* email_list
+	* email 'pk'
+	* password
+	* UID
+* token_list
+	* token 'pk'
+	* UID 
+	* create_time
+
+即登录的时候去查询email_list,核对密码和获取UID，得到UID在底层生成一个新的token，存入token_list, 当然每次调用signin的API我们肯定是会新生成token的，所以可能会有很多token对应同一个UID，我们只要同时跑一个定时任务，每一段时间清理一下token_list清除我们认为过期的token就好了。当然这里会有这么一个问题，虽然我们可以每一个UID只对应一个token，这样看起来也更美好，因为一个账户只会有一个token，token_list这张表会比多个token对应同个UID小好几倍，查询的速度也会更快，可是这种时候真的好么？这里其实可以稍微聊一下后端的设计思想，在我们公司里带我的后端师傅也说过类似的，后端与前端最大的差别就是前端是每一份程序就对应一个用户，不论是网页还是APP，而后端的每一份程序对应着成千上万的用户，这些用户里可能会有各种客户端，那比如我们认为token7天就过期了，用户在手机APP端，网页端分别登录了，网页端为先，2天之后手机端登录了，说好了7天过期，结果手机客户端5天就过期无法登录了，那又该如何呢？
+
+### 小知识点
+* 给一个struct中的匿名字段赋值，赋值的是另一个struct的copy，即更改A的匿名字段的值，并不会影响赋值的B的值，所以在登录操作的时候缓存我们用defer语句来做，更改了lastSignInTime之后再缓存。
+* 可以去了解下golang的struct的tag语法，可以实现一些比较棒的语法糖。
